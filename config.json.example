@@ -1,0 +1,10 @@
+{
+  "Face": {
+    "size": 30,
+    "font": "RobotoLight"
+  },
+  "HistoryPlay": {
+    "highest": 2000,
+    "you": 1037
+  }
+}
