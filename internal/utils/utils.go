@@ -11,11 +11,12 @@ import (
 )
 
 var (
-	GREEN color.Color = &color.RGBA{R: 0, G: 128, B: 70, A: 255}
-	RED   color.Color = &color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	BLUE  color.Color = &color.RGBA{R: 0, G: 0, B: 255, A: 255}
-	WHITE             = &color.White
-	BLACK             = &color.Black
+	GREEN        color.Color = &color.RGBA{R: 0, G: 128, B: 70, A: 255}
+	RED          color.Color = &color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	BLUE         color.Color = &color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	WHITE                    = &color.White
+	BLACK                    = &color.Black
+	BORDER_WIDTH float32     = 2
 )
 
 type BORDER_STRENGTH int
@@ -76,6 +77,8 @@ func (s *Screen) WithBorder(b BORDER_STRENGTH, borderColor color.Color, opts ...
 	return &sb
 }
 
+// ContainerUtils holds the core prestate of a render ready to display. The state of the render is displayed by calling its Display() function, and passing in the ebiten.Image as an argument.
+// It satisfies the Utils interface
 type ContainerUtils struct {
 	ctx                             context.Context
 	BORDER_W, BORDER_H              int
@@ -132,6 +135,8 @@ func (s *Screen) WithContainerFill(x, y, width, height float32, opts *ContainerO
 	return ContainerFill(s.ctx, x, y, width, height, s.WHOLE_W, s.WHOLE_H, opts)
 }
 
+// ContainerFill draws a bounded box. x, y is the point on the window where the bounded box begins (top-left) vertex. width and height are the dimensions of thw box to be rendered, and wholeH and wholeW are the dimensions for the window itself.
+// opts an ContainerOptions holds the customization options for the bounded box to be rendered
 func ContainerFill(ctx context.Context, x, y, width, height float32, wholeW, wholeH int, opts *ContainerOptions) *ContainerUtils {
 	_, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -157,7 +162,7 @@ func ContainerFill(ctx context.Context, x, y, width, height float32, wholeW, who
 		}
 		vector.DrawFilledRect(screen, x, y, width, height, FillColor, false)
 		if opts.BorderColor != nil {
-			vector.StrokeRect(screen, x, y, width, height, 2, opts.BorderColor, false)
+			vector.StrokeRect(screen, x, y, width, height, BORDER_WIDTH, opts.BorderColor, false)
 		}
 	}}
 	return &con

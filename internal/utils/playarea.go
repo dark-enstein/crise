@@ -11,7 +11,7 @@ type PlayArea struct {
 	Settings           *config.Gameplay
 }
 
-func NewPlayArea(tLX, tLY, w, h int, cfg *config.Gameplay) *PlayArea {
+func NewPlayArea(tLX, tLY, w, h int, spriteW, spriteH float32, cfg *config.Gameplay) *PlayArea {
 	return &PlayArea{
 		TopLeftX: tLX,
 		TopLeftY: tLY,
@@ -22,6 +22,11 @@ func NewPlayArea(tLX, tLY, w, h int, cfg *config.Gameplay) *PlayArea {
 }
 
 func (p *PlayArea) PlaceIn(ctx context.Context, x, y int) *ContainerUtils {
+	realX, realY := (x*SPRITE_WIDTH)+p.TopLeftX, (y*SPRITE_HEIGHT)+p.TopLeftY
+	return ContainerFill(ctx, float32(realX), float32(realY), SPRITE_WIDTH, SPRITE_HEIGHT, p.Width, p.Height, NewContainerOptions(UseWeightPack(2, 7, 10), UseBorderColor(WHITE), UseFillColor(BLUE)))
+}
+
+func (p *PlayArea) placeIn(ctx context.Context, x, y int) *ContainerUtils {
 	realX, realY := (x*SPRITE_WIDTH)+p.Width, (y*SPRITE_HEIGHT)+p.Height
 	return ContainerFill(ctx, float32(realX), float32(realY), SPRITE_WIDTH, SPRITE_HEIGHT, p.Width, p.Height, NewContainerOptions(UseWeightPack(2, 7, 10), UseBorderColor(WHITE), UseFillColor(BLUE)))
 }

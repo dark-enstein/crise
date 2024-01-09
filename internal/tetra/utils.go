@@ -8,7 +8,7 @@ import (
 
 // // MultiContainerFill used to create multicontainer objects
 func MultiContainerFill(ctx context.Context, spriteWidth, spriteHeight float32, wholeWidth, wholeHeight int, arr [][]int, opts *utils.ContainerOptions) func(screen *ebiten.Image) {
-	var pa = utils.NewPlayArea(utils.WALL_X0, utils.WALL_Y0, wholeWidth, wholeHeight, nil)
+	var pa = utils.NewPlayArea(utils.WALL_X0, utils.WALL_Y0, wholeWidth, wholeHeight, spriteWidth, spriteHeight, nil)
 	//fmt.Println("Entered Multi container fill")
 	bulkDisplay := []*utils.ContainerUtils{}
 	for i := 0; i < len(arr); i++ {

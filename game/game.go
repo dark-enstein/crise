@@ -24,10 +24,11 @@ const (
 )
 
 var (
-	DefaultFont font.Face
-	COLOR_RED   = color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	RUNTIME_DIR = "build/runtime"
-	HELP_TEXT   = `
+	DELAY_BEFORE_ACCELERATION = 10
+	DefaultFont               font.Face
+	COLOR_RED                 = color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	RUNTIME_DIR               = "build/runtime"
+	HELP_TEXT                 = `
 Here's how to play:
 
 1. Moving Tetromino: Use the left and right arrow keys to move the falling tetromino left or right.
@@ -78,9 +79,9 @@ func NewGameWithContext(ctx *context.Context, cFunc context.CancelCauseFunc, sta
 		P:            startPhase,
 		Settings:     settings,
 		ExecMode:     mode,
-		FeatureFlags: fflags,
+		FeatureFlags: fflags, // Developer settings
 		sample:       [][]int{{305, 316}, {275, 346}, {305, 346}},
-		Tetromino:    NewTetrominoMananger(INCREMENT),
+		Tetromino:    NewTetrominoMananger(INCREMENT), // Developer settings
 	}
 }
 
@@ -140,6 +141,7 @@ func (g *Game) Update() error {
 	x, y := ebiten.CursorPosition()
 	switch g.P {
 	case INIT:
+		g.P = WELCOME
 	case WELCOME:
 		g.debugPos("left")
 		if (x >= 120 && y >= 152) && (x <= 240 && y <= 222) {
@@ -168,7 +170,7 @@ func (g *Game) Update() error {
 		}
 	case START:
 		// reset func // later random gen
-		fmt.Println("UPDATE_START")
+		//fmt.Println("UPDATE_START")
 		g.debugPos("left")
 		if (x >= 404 && y >= 449) && (x <= 574 && y <= 533) {
 			if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
@@ -187,50 +189,29 @@ func (g *Game) Update() error {
 			}
 		}
 		if len(g.Tetromino.onScreenBank) > 0 {
-			currActiveArr := g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr
-			if inpututil.IsKeyJustReleased(ebiten.KeyArrowDown) {
+			if inpututil.KeyPressDuration(ebiten.KeyArrowDown) > DELAY_BEFORE_ACCELERATION {
+				if !g.IsAccelerated() {
+					g.Accelerate()
+				}
+				if inpututil.IsKeyJustReleased(ebiten.KeyArrowDown) {
+					g.ResetInc()
+					return nil
+				}
+				g.MoveDown()
+			}
+			switch {
+			case inpututil.IsKeyJustReleased(ebiten.KeyArrowDown):
 				log.Printf("key arrow down pressed: x=%d, y=%d\n", x, y)
-				g.Lock()
-				for i := 0; i < len(currActiveArr); i++ {
-					fX, fY := currActiveArr[i][0], currActiveArr[i][1]
-					//g.sample[i][0] += INCREMENT
-					g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][1] += g.Tetromino.settings.tIncrement
-					fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][0], g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][1])
-				}
-				g.Unlock()
-			}
-			if inpututil.IsKeyJustReleased(ebiten.KeyArrowUp) {
+				g.MoveDown()
+			case inpututil.IsKeyJustReleased(ebiten.KeyArrowUp):
 				log.Printf("key arrow up pressed: x=%d, y=%d\n", x, y)
-				g.Lock()
-				for i := 0; i < len(currActiveArr); i++ {
-					fX, fY := currActiveArr[i][0], currActiveArr[i][1]
-					//g.sample[i][0] += INCREMENT
-					g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][1] -= g.Tetromino.settings.tIncrement
-					fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][0], g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][1])
-				}
-				g.Unlock()
-			}
-			if inpututil.IsKeyJustReleased(ebiten.KeyArrowRight) {
+				g.MoveUp()
+			case inpututil.IsKeyJustReleased(ebiten.KeyArrowRight):
 				log.Printf("key arrow right pressed: x=%d, y=%d\n", x, y)
-				g.Lock()
-				for i := 0; i < len(currActiveArr); i++ {
-					fX, fY := currActiveArr[i][0], currActiveArr[i][1]
-					g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][0] += g.Tetromino.settings.tIncrement
-					//g.sample[i][1] += INCREMENT
-					fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][0], g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][1])
-				}
-				g.Unlock()
-			}
-			if inpututil.IsKeyJustReleased(ebiten.KeyArrowLeft) {
+				g.MoveRight()
+			case inpututil.IsKeyJustReleased(ebiten.KeyArrowLeft):
 				log.Printf("key arrow left pressed: x=%d, y=%d\n", x, y)
-				g.Lock()
-				for i := 0; i < len(currActiveArr); i++ {
-					fX, fY := currActiveArr[i][0], currActiveArr[i][1]
-					g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][0] -= g.Tetromino.settings.tIncrement
-					//g.sample[i][1] += INCREMENT
-					fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][0], g.Tetromino.onScreenBank[g.Tetromino.activeN].Arr[i][1])
-				}
-				g.Unlock()
+				g.MoveLeft()
 			}
 		} else {
 			// at the start of the game
@@ -358,4 +339,43 @@ func (g *Game) debugPos(s string) {
 			log.Printf("Right: mouse pressed at: x=%d, y=%d\n", x, y)
 		}
 	}
+}
+
+// MoveDown moves the piece downward
+func (g Game) MoveDown() {
+	log.Println("Game: Moving downward")
+	g.Tetromino.MoveDown()
+}
+
+// MoveUp moves the piece upward
+func (g Game) MoveUp() {
+	log.Println("Game: Moving upward")
+	g.Tetromino.MoveUp()
+}
+
+// MoveLeft moves the piece leftward
+func (g Game) MoveLeft() {
+	log.Println("Game: Moving leftward")
+	g.Tetromino.MoveLeft()
+}
+
+// MoveRight moves the piece rightward
+func (g Game) MoveRight() {
+	log.Println("Game: Moving rightward")
+	g.Tetromino.MoveRight()
+}
+
+// Accelerate accelerates the current tetromino. On key press
+func (g Game) Accelerate() {
+	g.Tetromino.Accelerate()
+}
+
+// ResetInc resets the increment of the current tetromino. On key release
+func (g Game) ResetInc() {
+	g.Tetromino.ResetInc()
+}
+
+// IsAccelerated checks if the currently active tetromino is accelerated
+func (g Game) IsAccelerated() bool {
+	return g.Tetromino.IsAccelerated()
 }

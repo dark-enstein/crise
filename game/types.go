@@ -27,6 +27,7 @@ var (
 		HELP:  {},
 		QUIT:  {},
 		DEBUG: {},
+		INIT:  {},
 	}
 	SPRITE_W = 291 / utils.SPRITE_WIDTH
 	SPRITE_H = 494 / utils.SPRITE_HEIGHT

@@ -8,3 +8,14 @@
     "you": 1037
   }
 }
+
+{
+  "Developer": {
+    "AcceleratedFactor": 30,
+    "SpriteHeight": "RobotoLight",
+    "SpriteWidth": "RobotoLight",
+    "Acceleration": "RobotoLight",
+    "Acceleration": "RobotoLight",
+    "Acceleration": "RobotoLight"
+  }
+}

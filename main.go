@@ -64,7 +64,7 @@ func main() {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 	ebiten.SetWindowSize(640, 640)
-	ebiten.SetWindowTitle("Tetris")
+	ebiten.SetWindowTitle("Crise: a tetris incarnate")
 	ff := map[string]config.FFlags{}
 	mode := 0
 	if Debug == "true" {
@@ -87,11 +87,11 @@ func main() {
 	if mode != game.EXEC_PRODUCTION && len(ff) > 0 && ff[config.FLAG_GRACEFULTERM] > 0 {
 		var gE errgroup.Group
 		gE.Go(func() error {
-			return ebiten.RunGame(game.NewGameWithContext(&ctx, cancel, game.WELCOME, cfg, mode, ff))
+			return ebiten.RunGame(game.NewGameWithContext(&ctx, cancel, game.INIT, cfg, mode, ff))
 		})
 		select {
-		//default:
-		//	log.Println("Game exited successfully")
+		default:
+			log.Println("Game exited successfully")
 		case <-ctx.Done():
 			err := context.Cause(ctx)
 			if err != nil {
@@ -104,7 +104,7 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		if err := ebiten.RunGame(game.NewGame(cancel, game.WELCOME, cfg, mode, ff)); err != nil {
+		if err := ebiten.RunGame(game.NewGame(cancel, game.INIT, cfg, mode, ff)); err != nil {
 			log.Fatal(err)
 		}
 	}

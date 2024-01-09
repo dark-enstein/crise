@@ -2,13 +2,17 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"github.com/dark-enstein/crise/internal/tetra"
 	utils2 "github.com/dark-enstein/crise/internal/utils"
 	"github.com/hajimehoshi/ebiten/v2"
+	"log"
+	"sync"
 )
 
 const (
 	MAX_TETROMINO_ONSCREEN = 300
+	ACCELERATION_FACTOR    = 0.5
 )
 
 // TetrominoManager manages the spawn and despqwn of Tetrominoes in game.
@@ -23,18 +27,33 @@ type TetrominoManager struct {
 	onScreenBank []*tetra.Tetromino
 	// settings holds config settings that TetrominoManager uses to manage the tetris animation
 	settings *TetroSettings
+	// handling syncronization and change of state
+	sync.Mutex
 }
 
 // TetroSettings defines the settings used by the manager to manage tetris animation
 type TetroSettings struct {
-	tIncrement int
+	// tIncrement holds the increment value valid, given the current input. It can always be mutated
+	tIncrement float32
+	// tIncrementSaved holds the increment value as defined in settings. It never changes.
+	tIncrementSaved float32
+}
+
+// Accelerate increases the value of the increment by a factor to simulate acceleration
+func (ts *TetroSettings) Accelerate() {
+	ts.tIncrement += ACCELERATION_FACTOR
+}
+
+// Reset resets the currnetly active increment value to original as set within from settings
+func (ts *TetroSettings) Reset() {
+	ts.tIncrement = ts.tIncrementSaved
 }
 
 // NewTetrominoMananger creates a new Tetromino manager. inc is the preferred increment or speed of the Tetromino on key direction directive. Right now it is measured in pixels on the screen, but later it would be changed to be a multiple of utils2.SPRITE_HEIGHT
 func NewTetrominoMananger(inc int) *TetrominoManager {
 	return &TetrominoManager{
 		onScreenBank: make([]*tetra.Tetromino, 0, MAX_TETROMINO_ONSCREEN),
-		settings:     &TetroSettings{tIncrement: inc},
+		settings:     &TetroSettings{tIncrement: float32(inc)},
 	}
 }
 
@@ -56,6 +75,67 @@ func (t *TetrominoManager) OnScreenBank() []*tetra.Tetromino {
 	return t.onScreenBank
 }
 
+// ActiveTArray returns the 2D array of the currently active Tetromino
+func (t *TetrominoManager) ActiveTArray() [][]int {
+	return t.onScreenBank[t.activeN].Arr
+}
+
+// MoveDown moves the tetromino downward
+func (t *TetrominoManager) MoveDown() {
+	log.Println("acquiring move down lock")
+	t.Lock()
+	for i := 0; i < len(t.ActiveTArray()); i++ {
+		fX, fY := t.ActiveTArray()[i][0], t.ActiveTArray()[i][1]
+		//g.sample[i][0] += INCREMENT
+		t.onScreenBank[t.activeN].Arr[i][1] += t.inc()
+		fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, t.onScreenBank[t.activeN].Arr[i][0], t.onScreenBank[t.activeN].Arr[i][1])
+	}
+	log.Println("releasing move down lock")
+	t.Unlock()
+}
+
+// MoveUp moves the tetromino upwards
+func (t *TetrominoManager) MoveUp() {
+	log.Println("acquiring move up lock")
+	t.Lock()
+	for i := 0; i < len(t.ActiveTArray()); i++ {
+		fX, fY := t.ActiveTArray()[i][0], t.ActiveTArray()[i][1]
+		//g.sample[i][0] += INCREMENT
+		t.onScreenBank[t.activeN].Arr[i][1] -= t.inc()
+		fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, t.onScreenBank[t.activeN].Arr[i][0], t.onScreenBank[t.activeN].Arr[i][1])
+	}
+	log.Println("releasing move up lock")
+	t.Unlock()
+}
+
+// MoveLeft moves the tetromino leftward
+func (t *TetrominoManager) MoveLeft() {
+	log.Println("acquiring move left lock")
+	t.Lock()
+	for i := 0; i < len(t.ActiveTArray()); i++ {
+		fX, fY := t.ActiveTArray()[i][0], t.ActiveTArray()[i][1]
+		t.onScreenBank[t.activeN].Arr[i][0] -= t.inc()
+		//g.sample[i][1] += INCREMENT
+		fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, t.onScreenBank[t.activeN].Arr[i][0], t.onScreenBank[t.activeN].Arr[i][1])
+	}
+	log.Println("releasing move left lock")
+	t.Unlock()
+}
+
+// MoveRight moves the tetromino rightward
+func (t *TetrominoManager) MoveRight() {
+	log.Println("acquiring move right lock")
+	t.Lock()
+	for i := 0; i < len(t.ActiveTArray()); i++ {
+		fX, fY := t.ActiveTArray()[i][0], t.ActiveTArray()[i][1]
+		t.onScreenBank[t.activeN].Arr[i][0] += t.inc()
+		//g.sample[i][1] += INCREMENT
+		fmt.Printf("moved sprites from %v,%v to %v,%v\n", fX, fY, t.onScreenBank[t.activeN].Arr[i][0], t.onScreenBank[t.activeN].Arr[i][1])
+	}
+	log.Println("releasing move right lock")
+	t.Unlock()
+}
+
 // WillCollide implements collission detection for Tetris
 func (t *TetrominoManager) WillCollide(t0 *tetra.Tetromino) {}
 
@@ -70,4 +150,27 @@ func (t *TetrominoManager) Display(ctx context.Context, screen *ebiten.Image) {
 		//log.Printf("calling build on tetromino: %v\n", t.onScreenBank[i])
 		t.onScreenBank[i].Build(ctx)(screen)
 	}
+}
+
+// Accelerate accelerates the current tetromino. On key press
+func (t *TetrominoManager) Accelerate() {
+	t.settings.Accelerate()
+}
+
+// ResetInc resets the increment of the current tetromino. On key release
+func (t *TetrominoManager) ResetInc() {
+	t.settings.Reset()
+}
+
+// inc returns the current increment value cast into int
+func (t *TetrominoManager) inc() int {
+	return int(t.settings.tIncrement)
+}
+
+// IsAccelerated checks if the currently active tetromino is accelerated
+func (t *TetrominoManager) IsAccelerated() bool {
+	if t.settings.tIncrement < t.settings.tIncrementSaved || t.settings.tIncrement == t.settings.tIncrementSaved {
+		return false
+	}
+	return true
 }
