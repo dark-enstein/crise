@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"text/tabwriter"
 	"time"
@@ -66,6 +67,7 @@ type Game struct {
 	x, y    int
 	// tetris state
 	sample    [][]int
+	justInit  bool
 	Tetromino *TetrominoManager
 	// Running mode
 	ExecMode int
@@ -133,6 +135,7 @@ func (g *Game) genWelcomeText() string {
 }
 
 func (g *Game) Update() error {
+	//fmt.Println("running update. phase:", g.P)
 	ok := false
 	if g.LeadText, ok = PHASES[g.P]; !ok {
 		log.Printf("phase %v unrecognized\n", g.P)
@@ -169,8 +172,20 @@ func (g *Game) Update() error {
 			}
 		}
 	case START:
+		fmt.Println("UPDATE_START")
+		log.Printf("%d go routines alive\n", runtime.NumGoroutine())
+		// Sets up gameplay
+		if g.justInit {
+			log.Println("definitely a restart")
+			g.Tetromino = g.ResetBoard()
+		}
+		g.P = PLAYGAME
+		go g.CronMove()
+		log.Println("setting phase from START to PLAYGAME. phase:", g.P)
+		g.justInit = true
+	case PLAYGAME:
 		// reset func // later random gen
-		//fmt.Println("UPDATE_START")
+		//fmt.Println("UPDATE_PLAYGAME")
 		g.debugPos("left")
 		if (x >= 404 && y >= 449) && (x <= 574 && y <= 533) {
 			if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
@@ -213,9 +228,6 @@ func (g *Game) Update() error {
 				log.Printf("key arrow left pressed: x=%d, y=%d\n", x, y)
 				g.MoveLeft()
 			}
-		} else {
-			// at the start of the game
-			g.Tetromino.Add()
 		}
 		if g.Tetromino.creationCounter >= 300 {
 			g.Lock()
@@ -234,6 +246,7 @@ func (g *Game) Update() error {
 			}
 		}
 	case QUIT:
+		//g.Shutdown()
 	case DEBUG:
 		if g.ExecMode == EXEC_DEBUG {
 			g.debugPos("left")
@@ -269,6 +282,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		text.Draw(screen, g.genWelcomeText(), DefaultFont, 120, 320, color.White)
 	case START:
 		fmt.Println("DISPLAY_START")
+	case PLAYGAME:
 		ctx := context.Background()
 		//g.Tetromino.Add()
 		u.WithContainerHollow(utils2.LIGHT, float32(utils2.WALL_X0), float32(utils2.WALL_Y0), float32(utils2.WALL_WIDTH), float32(utils2.WALL_HEIGHT), utils2.NewContainerOptions(utils2.UseWeightPack(2, 7, 10), utils2.UseText("", DefaultFont), utils2.UseBorderColor(BorderColor), utils2.UseFillColor(BGColor))).Display(screen)
@@ -282,6 +296,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		spawnWall(ctx)(screen)
 		if len(g.FeatureFlags) > 0 && g.FeatureFlags[config.FLAG_PLAYGAME] == config.FlagEnabled {
 			// super buggy, hehe. when I find time, I'll continue.
+			log.Println("about displaying sprite array")
 			g.Tetromino.Display(ctx, screen)
 		}
 	case HELP:
@@ -378,4 +393,42 @@ func (g Game) ResetInc() {
 // IsAccelerated checks if the currently active tetromino is accelerated
 func (g Game) IsAccelerated() bool {
 	return g.Tetromino.IsAccelerated()
+}
+
+// CronMove moves the active tetromino downward at specific intervals
+func (g Game) CronMove() {
+	//time.Sleep(10)
+	log.Println("bank before cron move:", g.Tetromino.OnScreenBank())
+	defer g.Tetromino.TetrisTicker.Stop()
+	//for t := range g.Tetromino.TetrisTicker.C {
+	//select {
+	//case t := <-g.Tetromino.TetrisTicker.C: // forever blocked on a nil channel
+	//log.Println("moving falling sprite at time:", t)
+	//g.Tetromino.CronMove()
+	//case <-g.Tetromino.DoneChan: // to listen to signal on this channel
+	//	return
+	//}
+	//}
+	for {
+		select {
+		case t := <-g.Tetromino.TetrisTicker.C: // forever blocked on a nil channel
+			log.Println("moving falling sprite at time:", t)
+			g.Tetromino.CronMove()
+		case <-g.Tetromino.DoneChan: // to listen to signal on this channel
+			return
+		}
+	}
+}
+
+func (g Game) ResetBoard() *TetrominoManager {
+	g.ShutdownTicker()
+	//g.Tetromino.Drain()
+	g.Tetromino = NewTetrominoMananger(INCREMENT)
+	log.Println("bank after reset board:", g.Tetromino.OnScreenBank())
+	return g.Tetromino
+}
+
+func (g Game) ShutdownTicker() {
+	log.Println("shutting down ticker")
+	g.Tetromino.DoneChan <- true
 }
