@@ -7,12 +7,15 @@ import (
 	utils2 "github.com/dark-enstein/crise/internal/utils"
 	"github.com/hajimehoshi/ebiten/v2"
 	"log"
+	"math/rand"
 	"sync"
+	"time"
 )
 
 const (
 	MAX_TETROMINO_ONSCREEN = 300
 	ACCELERATION_FACTOR    = 0.5
+	TICKER_DURATION        = 1
 )
 
 // TetrominoManager manages the spawn and despqwn of Tetrominoes in game.
@@ -25,6 +28,10 @@ type TetrominoManager struct {
 	activeN int
 	// onScreenBank stores all the currently displayed Tetromino on screen
 	onScreenBank []*tetra.Tetromino
+	// TetrisTicker tickes per duration sending current time via the channel at every interval
+	TetrisTicker *time.Ticker
+	// DoneChan channel receives a completion signal on done, or error during game play
+	DoneChan chan bool
 	// settings holds config settings that TetrominoManager uses to manage the tetris animation
 	settings *TetroSettings
 	// handling syncronization and change of state
@@ -51,16 +58,29 @@ func (ts *TetroSettings) Reset() {
 
 // NewTetrominoMananger creates a new Tetromino manager. inc is the preferred increment or speed of the Tetromino on key direction directive. Right now it is measured in pixels on the screen, but later it would be changed to be a multiple of utils2.SPRITE_HEIGHT
 func NewTetrominoMananger(inc int) *TetrominoManager {
+	log.Println("creating new tetromino")
+	manager := newTetrominoMananger(inc)
+	log.Println("created new tetromino, adding a tetromino")
+	manager.Add()
+	log.Println("added a tetromino:", manager.onScreenBank)
+	return manager
+}
+
+// newTetrominoMananger creates a new Tetromino manager. inc is the preferred increment or speed of the Tetromino on key direction directive. Right now it is measured in pixels on the screen, but later it would be changed to be a multiple of utils2.SPRITE_HEIGHT
+func newTetrominoMananger(inc int) *TetrominoManager {
 	return &TetrominoManager{
 		onScreenBank: make([]*tetra.Tetromino, 0, MAX_TETROMINO_ONSCREEN),
 		settings:     &TetroSettings{tIncrement: float32(inc)},
+		TetrisTicker: time.NewTicker(TICKER_DURATION * time.Second),
+		DoneChan:     make(chan bool, 1),
 	}
 }
 
 // Add adds a new Tetromino to the screen
 func (t *TetrominoManager) Add() {
 	//rand.Intn(len(tetra.TetraCoordinates))
-	t.onScreenBank = append(t.onScreenBank, tetra.NewTetromino(tetra.TetraCoordinates[tetra.J], utils2.WALL_WIDTH, utils2.WALL_HEIGHT))
+	//tetra.Mini(rand.Intn(len(tetra.TetraCoordinates)))
+	t.onScreenBank = append(t.onScreenBank, tetra.NewTetromino(tetra.TetraCoordinates[tetra.Mini(rand.Intn(len(tetra.TetraCoordinates)))], utils2.SPRITE_X0, utils2.SPRITE_Y0))
 	t.activeN = len(t.onScreenBank) - 1
 	t.activeMember = t.onScreenBank[t.activeN]
 }
@@ -84,6 +104,8 @@ func (t *TetrominoManager) ActiveTArray() [][]int {
 func (t *TetrominoManager) MoveDown() {
 	log.Println("acquiring move down lock")
 	t.Lock()
+	time.Sleep(3)
+	log.Println("bank state before moving down:", t.OnScreenBank())
 	for i := 0; i < len(t.ActiveTArray()); i++ {
 		fX, fY := t.ActiveTArray()[i][0], t.ActiveTArray()[i][1]
 		//g.sample[i][0] += INCREMENT
@@ -173,4 +195,18 @@ func (t *TetrominoManager) IsAccelerated() bool {
 		return false
 	}
 	return true
+}
+
+// CronMove checks if the active tetromino has already moved in the current cycle
+func (t *TetrominoManager) CronMove() {
+	log.Println("stepping down")
+	t.MoveDown()
+}
+
+// Drain empties the onScreenBank in preparation for shutdown or restart
+func (t *TetrominoManager) Drain() {
+	log.Println("stepping down")
+	log.Println("about cleaning onScreenBank:", t.onScreenBank)
+	t.onScreenBank = t.onScreenBank[:0]
+	log.Println("done cleaning onScreenBank:", t.onScreenBank)
 }

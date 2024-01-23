@@ -160,7 +160,7 @@ func ContainerFill(ctx context.Context, x, y, width, height float32, wholeW, who
 			var boxHPadding = (height - charHeight) / 2
 			text.Draw(screen, opts.Text, opts.FontFace, int(x+boxWPadding), int(y+boxHeightAdjustment+boxHPadding), color.White)
 		}
-		vector.DrawFilledRect(screen, x, y, width, height, FillColor, false)
+		vector.DrawFilledRect(screen, x, y, width+10, height+10, FillColor, false)
 		if opts.BorderColor != nil {
 			vector.StrokeRect(screen, x, y, width, height, BORDER_WIDTH, opts.BorderColor, false)
 		}

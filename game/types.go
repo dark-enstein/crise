@@ -9,6 +9,7 @@ const (
 	WELCOME Phase = iota
 	SCORE
 	START
+	PLAYGAME
 	HELP
 	QUIT
 	DEBUG
@@ -24,10 +25,11 @@ var (
 		START: P_CONTENT{
 			`"Score: %d\n`,
 		},
-		HELP:  {},
-		QUIT:  {},
-		DEBUG: {},
-		INIT:  {},
+		PLAYGAME: {},
+		HELP:     {},
+		QUIT:     {},
+		DEBUG:    {},
+		INIT:     {},
 	}
 	SPRITE_W = 291 / utils.SPRITE_WIDTH
 	SPRITE_H = 494 / utils.SPRITE_HEIGHT

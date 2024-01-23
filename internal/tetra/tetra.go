@@ -44,6 +44,13 @@ type Tetromino struct {
 	spriteWidth, spriteHeight float32
 }
 
+type ObjectClass int
+
+const (
+	CLASS_WALL ObjectClass = iota + 1
+	CLASS_TETROMINO
+)
+
 // NewTetromino converts a sequence of object coordinates delimited by colon (;) into the corresponding slice of byte slices
 func NewTetromino(coordinateMap string, wholeWidth, wholeHeight int) *Tetromino {
 	var t = &Tetromino{wholeWidth: wholeWidth, wholeHeight: wholeHeight}
@@ -53,7 +60,7 @@ func NewTetromino(coordinateMap string, wholeWidth, wholeHeight int) *Tetromino 
 		buf = append(buf, parseCoord(splices[i]))
 	}
 	t.Arr = buf[:len(splices)]
-	log.Println(buf)
+	//log.Println(buf)
 	return t
 }
 
